@@ -126,7 +126,7 @@ export default function MyEvents() {
   };
 
   return (
-    <OrganizerScreenShell title="My events" scrollable={false}>
+    <OrganizerScreenShell title="My events" scrollable={false} showBack={false}>
       <View className="w-full max-w-[720px] flex-1 self-center">
         <View className="mb-3 flex-row items-center gap-2 rounded-2xl border border-neutral-200 bg-white px-3 dark:border-white/10 dark:bg-white/5">
           <Feather name="search" size={18} color={isDark ? "#9ca3af" : "#6b7280"} />

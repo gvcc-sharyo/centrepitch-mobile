@@ -85,10 +85,14 @@ export const SCREENS = Object.freeze({
   /** Organizer stacks */
   OrganizerDashboardHome: 'OrganizerDashboardHome',
   OrganizerSports: 'OrganizerSports',
+  /** Organizer: full sports configuration wizard (parity with web admin Sports organizer mode). */
+  OrganizerSportConfiguration: 'OrganizerSportConfiguration',
   OrganizerContactAdmin: 'OrganizerContactAdmin',
   OrganizerMyQueriesScreen: 'OrganizerMyQueriesScreen',
   OrganizerTeamsHome: 'OrganizerTeamsHome',
   OrganizerTeamDetail: 'OrganizerTeamDetail',
+  OrganizerCreateTeam: 'OrganizerCreateTeam',
+  OrganizerEditTeam: 'OrganizerEditTeam',
   OrganizerMyEvents: 'OrganizerMyEvents',
   OrganizerCreateEvent: 'OrganizerCreateEvent',
   OrganizerEditEvent: 'OrganizerEditEvent',
@@ -97,5 +101,17 @@ export const SCREENS = Object.freeze({
   OrganizerRescheduleEvent: 'OrganizerRescheduleEvent',
   OrganizerStaffHome: 'OrganizerStaffHome',
   OrganizerProfileHome: 'OrganizerProfileHome',
+
+  /** Organizer parity: revenue, scorers, schedule tools, comms */
+  OrganizerEventAnnouncement: 'OrganizerEventAnnouncement',
+  OrganizerEventRevenue: 'OrganizerEventRevenue',
+  OrganizerRevenueAnalytics: 'OrganizerRevenueAnalytics',
+  OrganizerScorers: 'OrganizerScorers',
+  OrganizerEventScorers: 'OrganizerEventScorers',
+  OrganizerAddTeamToEvent: 'OrganizerAddTeamToEvent',
+  OrganizerEventStaff: 'OrganizerEventStaff',
+  OrganizerCoachTeams: 'OrganizerCoachTeams',
+  OrganizerBulkNotifications: 'OrganizerBulkNotifications',
+  OrganizerRegisteredPlayers: 'OrganizerRegisteredPlayers',
 });
 

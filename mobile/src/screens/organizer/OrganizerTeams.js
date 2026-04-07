@@ -77,8 +77,14 @@ export default function OrganizerTeams() {
   };
 
   return (
-    <OrganizerScreenShell title="Teams" scrollable={false}>
+    <OrganizerScreenShell title="Teams" scrollable={false} showBack={false}>
       <View className="w-full max-w-[720px] flex-1 self-center">
+        <Pressable
+          onPress={() => navigation.navigate(SCREENS.OrganizerCreateTeam)}
+          className="mb-4 items-center rounded-2xl bg-primary py-3.5"
+        >
+          <Text className="font-newsreader-bold text-white">Create team</Text>
+        </Pressable>
         {loading && teams.length === 0 ? (
           <View className="flex-1 items-center justify-center py-20">
             <ActivityIndicator color="#1F2B55" />

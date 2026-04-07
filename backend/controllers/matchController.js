@@ -668,53 +668,84 @@ export const deleteMatch = async (req, res) => {
       });
     }
 
-    // Find round
-    const round = event.schedule.find(s => s.round === roundName);
-    if (!round) {
-      return res.status(404).json({
-        success: false,
-        message: 'Round not found'
-      });
+    // Find embedded match (prefer roundName hint, then any round)
+    let round = roundName ? event.schedule.find(s => s.round === roundName) : null;
+    let matchIndex = -1;
+    if (round) {
+      matchIndex = round.matches.findIndex(m => m._id.toString() === req.params.matchId);
     }
-
-    // Find and remove match
-    const matchIndex = round.matches.findIndex(m => m._id.toString() === req.params.matchId);
     if (matchIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        message: 'Match not found'
+      for (const r of event.schedule || []) {
+        const idx = (r.matches || []).findIndex(m => m._id.toString() === req.params.matchId);
+        if (idx !== -1) {
+          round = r;
+          matchIndex = idx;
+          break;
+        }
+      }
+    }
+
+    if (matchIndex !== -1 && round) {
+      const removed = round.matches[matchIndex];
+      round.matches.splice(matchIndex, 1);
+      await event.save();
+
+      try {
+        const existing = await EventMatch.findOne({
+          event: event._id,
+          "metadata.legacyMatchId": removed?._id
+        }).lean();
+        if (existing?._id) {
+          await EventMatch.deleteOne({ _id: existing._id });
+          await auditEvent({
+            entityType: 'event_match',
+            entityId: existing._id,
+            action: 'deleted',
+            actor: req.user._id,
+            before: existing,
+            after: null,
+            metadata: { eventId: event._id, legacyMatchId: removed?._id || null }
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to delete EventMatch (non-blocking):', e?.message || e);
+      }
+
+      return res.json({
+        success: true,
+        message: 'Match deleted successfully'
       });
     }
 
-    const removed = round.matches[matchIndex];
-    round.matches.splice(matchIndex, 1);
-    await event.save();
-
-    // Sync delete to dedicated collection (non-blocking)
-    try {
-      const existing = await EventMatch.findOne({
-        event: event._id,
-        "metadata.legacyMatchId": removed?._id
-      }).lean();
-      if (existing?._id) {
-        await EventMatch.deleteOne({ _id: existing._id });
+    // Embedded schedule miss (e.g. schedule served only from EventMatch collection) — delete by match doc id
+    const direct = await EventMatch.findOne({
+      _id: req.params.matchId,
+      event: event._id
+    }).lean();
+    if (direct?._id) {
+      await EventMatch.deleteOne({ _id: direct._id });
+      try {
         await auditEvent({
           entityType: 'event_match',
-          entityId: existing._id,
+          entityId: direct._id,
           action: 'deleted',
           actor: req.user._id,
-          before: existing,
+          before: direct,
           after: null,
-          metadata: { eventId: event._id, legacyMatchId: removed?._id || null }
+          metadata: { eventId: event._id, legacyMatchId: null }
         });
+      } catch (e) {
+        console.warn('EventMatch audit log failed:', e?.message || e);
       }
-    } catch (e) {
-      console.warn('Failed to delete EventMatch (non-blocking):', e?.message || e);
+      return res.json({
+        success: true,
+        message: 'Match deleted successfully'
+      });
     }
 
-    res.json({
-      success: true,
-      message: 'Match deleted successfully'
+    return res.status(404).json({
+      success: false,
+      message: 'Match not found'
     });
   } catch (error) {
     console.error('Delete match error:', error);
@@ -750,18 +781,108 @@ export const updateMatchResult = async (req, res) => {
       });
     }
 
-    // Find round
-    const round = event.schedule.find(s => s.round === roundName);
-    if (!round) {
-      return res.status(404).json({
-        success: false,
-        message: 'Round not found'
+    // Schedule stored in EventMatch collection (no embedded subdocument) — update doc directly
+    const eventMatchDoc = await EventMatch.findOne({
+      _id: req.params.matchId,
+      event: event._id
+    });
+    if (eventMatchDoc) {
+      const participantIds = [
+        eventMatchDoc.sideA?.entityId?.toString(),
+        eventMatchDoc.sideB?.entityId?.toString()
+      ].filter(Boolean);
+      if (winnerId) {
+        const w = String(winnerId);
+        if (!participantIds.includes(w)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Winner must be one of the participating sides'
+          });
+        }
+        eventMatchDoc.result.winnerId = winnerId;
+        if (eventMatchDoc.sideA?.entityId?.toString() === w) {
+          eventMatchDoc.result.winnerType = eventMatchDoc.sideA.entityType;
+        } else if (eventMatchDoc.sideB?.entityId?.toString() === w) {
+          eventMatchDoc.result.winnerType = eventMatchDoc.sideB.entityType;
+        }
+      }
+      if (score !== undefined) eventMatchDoc.result.score = score;
+      if (status !== undefined) {
+        if (!['scheduled', 'in_progress', 'completed', 'cancelled'].includes(status)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid match status'
+          });
+        }
+        eventMatchDoc.status = status;
+      }
+      if (eventMatchDoc.status === 'completed') {
+        if (!eventMatchDoc.result?.winnerId) {
+          return res.status(400).json({
+            success: false,
+            message: 'Winner must be set when marking match as completed'
+          });
+        }
+        if (!eventMatchDoc.result?.score) {
+          return res.status(400).json({
+            success: false,
+            message: 'Score must be set when marking match as completed'
+          });
+        }
+      }
+      eventMatchDoc.updatedBy = req.user._id;
+      await eventMatchDoc.save();
+
+      if (eventMatchDoc.status === 'completed') {
+        try {
+          const pseudoMatch = {
+            _id: eventMatchDoc._id,
+            team1: eventMatchDoc.sideA?.entityType === 'team' ? eventMatchDoc.sideA.entityId : undefined,
+            team2: eventMatchDoc.sideB?.entityType === 'team' ? eventMatchDoc.sideB.entityId : undefined,
+            player1: eventMatchDoc.sideA?.entityType === 'player' ? eventMatchDoc.sideA.entityId : undefined,
+            player2: eventMatchDoc.sideB?.entityType === 'player' ? eventMatchDoc.sideB.entityId : undefined,
+            result: {
+              status: eventMatchDoc.status,
+              score: eventMatchDoc.result?.score,
+              winner: eventMatchDoc.result?.winnerId
+            }
+          };
+          ingestMatchAnalytics(event, pseudoMatch);
+        } catch (e) {
+          console.warn('ingestMatchAnalytics (EventMatch) skipped:', e?.message || e);
+        }
+      }
+
+      emitLiveScoresRefresh({
+        eventId: String(event._id),
+        matchId: String(eventMatchDoc._id),
+        kind: 'match_result'
+      });
+
+      return res.json({
+        success: true,
+        message: 'Match result updated successfully',
+        data: eventMatchDoc
       });
     }
 
-    // Find match
-    const matchIndex = round.matches.findIndex(m => m._id.toString() === req.params.matchId);
+    // Embedded schedule
+    let round = roundName ? event.schedule.find(s => s.round === roundName) : null;
+    let matchIndex = -1;
+    if (round) {
+      matchIndex = round.matches.findIndex(m => m._id.toString() === req.params.matchId);
+    }
     if (matchIndex === -1) {
+      for (const r of event.schedule || []) {
+        const idx = (r.matches || []).findIndex(m => m._id.toString() === req.params.matchId);
+        if (idx !== -1) {
+          round = r;
+          matchIndex = idx;
+          break;
+        }
+      }
+    }
+    if (!round || matchIndex === -1) {
       return res.status(404).json({
         success: false,
         message: 'Match not found'

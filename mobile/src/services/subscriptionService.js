@@ -1,6 +1,8 @@
 import api from './api';
 
 const subscriptionService = {
+  /** Current user's platform / role subscription rows (UserRoleSubscription). */
+  getMySubscriptionHistory: (params = {}) => api.get('/subscriptions/history/me', { params }),
   getPlans: (params = {}) => api.get('/subscriptions/plans', { params }),
   getPlanBySlug: (slug) => api.get(`/subscriptions/plans/${slug}`),
   getRoles: () => api.get('/subscriptions/roles'),

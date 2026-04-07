@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as ImagePicker from "expo-image-picker";
 import { useRoute } from "@react-navigation/native";
 import { useDispatch, useSelector } from "react-redux";
@@ -26,6 +27,7 @@ import uploadService from "../../services/uploadService";
 import { getErrorMessage } from "../../utils/helpers";
 import { toast } from "../../utils/toast";
 import {
+  getMe,
   logout,
   selectAuthLoading,
   selectEmailVerified,
@@ -84,15 +86,15 @@ const ACTIVE_TAB_STYLE = {
   backgroundColor: "rgba(16, 185, 129, 0.22)",
   ...(Platform.OS === "ios"
     ? {
-        shadowColor: "#34d399",
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.9,
-        shadowRadius: 14,
-      }
+      shadowColor: "#34d399",
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.9,
+      shadowRadius: 14,
+    }
     : {
-        elevation: 12,
-        shadowColor: "#34d399",
-      }),
+      elevation: 12,
+      shadowColor: "#34d399",
+    }),
 };
 
 const Field = ({ label, icon, value, onChangeText, placeholder, keyboardType, multiline }) => {
@@ -139,8 +141,7 @@ export default function Profile({ navigation }) {
   const iconMuted = isDark ? "rgba(255,255,255,0.8)" : "rgba(31,43,85,0.65)";
 
   const [activeTab, setActiveTab] = useState("profile"); // profile | address | sports | social
-  /** Local pick pending save — { uri, mimeType } */
-  const [pickedPhoto, setPickedPhoto] = useState(null);
+  const [uploadingProfilePhoto, setUploadingProfilePhoto] = useState(false);
 
   const [draft, setDraft] = useState({
     firstName: "",
@@ -186,10 +187,6 @@ export default function Profile({ navigation }) {
     }));
   }, [user]);
 
-  useEffect(() => {
-    setPickedPhoto(null);
-  }, [user?._id, user?.profilePhoto]);
-
   const fullName = useMemo(() => {
     const n = String(`${draft.firstName} ${draft.lastName}`).trim();
     return n || "Player";
@@ -199,10 +196,7 @@ export default function Profile({ navigation }) {
     () => getInitial({ ...user, firstName: draft.firstName, lastName: draft.lastName }),
     [user, draft.firstName, draft.lastName]
   );
-  const avatarUri = useMemo(
-    () => pickedPhoto?.uri || profilePhotoUri(user),
-    [pickedPhoto?.uri, user]
-  );
+  const avatarUri = useMemo(() => profilePhotoUri(user), [user]);
 
   const joinedDateText = useMemo(() => {
     if (!user?.createdAt) return null;
@@ -364,13 +358,43 @@ export default function Profile({ navigation }) {
     }
   };
 
-  const applyPickedAsset = useCallback((asset) => {
-    if (!asset?.uri) return;
-    setPickedPhoto({
-      uri: asset.uri,
-      mimeType: asset.mimeType || "image/jpeg",
-    });
-  }, []);
+  const applyPickedAsset = useCallback(
+    async (asset) => {
+      if (!asset?.uri) return;
+
+      // Do not set pickedPhoto for an optimistic preview — if upload/update fails, that made it look
+      // like the photo saved when it did not. Show spinner only until server confirms.
+      setUploadingProfilePhoto(true);
+      try {
+        const mime = asset.mimeType || "image/jpeg";
+        const file = { uri: asset.uri, type: mime, name: "profile.jpg" };
+        const uploadRes = await uploadService.uploadProfilePhoto(file);
+        const url = uploadRes?.data?.url ?? uploadRes?.url;
+        if (!url || typeof url !== "string") {
+          toast.error(uploadRes?.message || "Upload did not return a photo URL.");
+          return;
+        }
+
+        const res = await dispatch(updateProfile({ profilePhoto: url }));
+        if (updateProfile.fulfilled.match(res)) {
+          try {
+            await dispatch(getMe()).unwrap();
+          } catch {
+            /* getMe optional; updateProfile already merged user */
+          }
+          toast.success("Profile photo updated.");
+          return;
+        }
+        const msg = typeof res.payload === "string" ? res.payload : "Failed to update profile photo.";
+        toast.error(msg);
+      } catch (e) {
+        toast.error(getErrorMessage(e) || "Failed to update profile photo.");
+      } finally {
+        setUploadingProfilePhoto(false);
+      }
+    },
+    [dispatch]
+  );
 
   const openPhotoLibrary = useCallback(async () => {
     try {
@@ -436,28 +460,17 @@ export default function Profile({ navigation }) {
     };
 
     try {
-      if (pickedPhoto?.uri) {
-        const file = {
-          uri: pickedPhoto.uri,
-          type: pickedPhoto.mimeType || "image/jpeg",
-          name: "profile.jpg",
-        };
-        const uploadRes = await uploadService.uploadProfilePhoto(file);
-        const url = uploadRes?.data?.url ?? uploadRes?.url;
-        if (!url || typeof url !== "string") {
-          toast.error(uploadRes?.message || "Upload did not return a photo URL.");
-          return;
-        }
-        payload.profilePhoto = url;
-      }
-
       const res = await dispatch(updateProfile(payload));
       if (updateProfile.fulfilled.match(res)) {
-        setPickedPhoto(null);
+        try {
+          await dispatch(getMe()).unwrap();
+        } catch {
+          /* optional refresh */
+        }
         toast.success("Profile updated.");
         return;
       }
-      toast.error(res.payload || "Failed to update profile.");
+      toast.error(typeof res.payload === "string" ? res.payload : "Failed to update profile.");
     } catch (e) {
       toast.error(getErrorMessage(e) || "Failed to update profile.");
     }
@@ -500,18 +513,36 @@ export default function Profile({ navigation }) {
 
   const TabBtn = ({ id, label, icon }) => {
     const active = activeTab === id;
+    const hasLabel = Boolean(String(label || "").trim());
+    const iconSize = hasLabel ? 16 : 20;
+    const isSportsTab = id === "sports";
     return (
       <Pressable
         onPress={() => setActiveTab(id)}
         accessibilityRole="button"
         accessibilityState={{ selected: active }}
-        className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl py-2"
-        style={active ? ACTIVE_TAB_STYLE : { backgroundColor: "transparent" }}
+        className={`flex-1 rounded-full px-3 py-2.5 ${active ? "bg-primary" : "border border-neutral-200 dark:border-white/15"}`}
       >
-        <Feather name={icon} size={16} color={active ? "#FFFFFF" : "rgba(255,255,255,0.7)"} />
-        <Text className={[active ? "text-white" : "text-white/70", "text-sm font-newsreader-bold"].join(" ")}>
-          {label}
-        </Text>
+        <View className={`flex-row items-center justify-center ${hasLabel ? "gap-2" : ""}`}>
+          {isSportsTab ? (
+            <MaterialIcons
+              name="sports-cricket"
+              size={iconSize + 2}
+              color={active ? "#fff" : isDark ? "#e5e7eb" : "#374151"}
+            />
+          ) : (
+            <Feather name={icon} size={iconSize} color={active ? "#fff" : isDark ? "#e5e7eb" : "#374151"} />
+          )}
+          {hasLabel ? (
+            <Text
+              className={`font-playfair text-sm ${active ? "text-white" : "text-neutral-800 dark:text-white/85"}`}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {label}
+            </Text>
+          ) : null}
+        </View>
       </Pressable>
     );
   };
@@ -537,12 +568,15 @@ export default function Profile({ navigation }) {
           {/* Profile card — horizontal contact sheet */}
           <View className="rounded-3xl border border-neutral-200 bg-white p-5 dark:border-white/10 dark:bg-white/5">
             <View className="flex-row items-center gap-4">
-              <View className="h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#1F2B55]">
-                {avatarUri ? (
-                  <Image source={{ uri: avatarUri }} className="h-full w-full" resizeMode="cover" />
-                ) : (
-                  <Text className="text-4xl font-newsreader-bold text-white">{initial}</Text>
-                )}
+              <View className="relative shrink-0">
+                <View className="h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-[#1F2B55]">
+                  {avatarUri ? (
+                    <Image source={{ uri: avatarUri }} className="h-full w-full" resizeMode="cover" />
+                  ) : (
+                    <Text className="text-4xl font-newsreader-bold text-white">{initial}</Text>
+                  )}
+                </View>
+                
               </View>
               <View className="min-w-0 flex-1">
                 <Text
@@ -623,34 +657,49 @@ export default function Profile({ navigation }) {
             </View>
           </View>
 
-          {/* Tabs */}
-          <View className="mt-5 rounded-3xl bg-[#1F2B55] p-2">
-            <View className="flex-row gap-2">
-              <TabBtn id="profile" label="Profile" icon="user" />
-              <TabBtn id="address" label="Address" icon="map-pin" />
-              <TabBtn id="sports" label="Sports" icon="activity" />
-              <TabBtn id="social" label="Social" icon="link" />
-            </View>
-          </View>
+
 
           {/* Tab content */}
           <View className="mt-4 rounded-3xl border border-neutral-200 bg-white p-5 dark:border-white/10 dark:bg-white/5">
+            {/* Tabs */}
+            <View className="flex-row gap-2">
+              <TabBtn id="profile" label="" icon="user" />
+              <TabBtn id="address" label="" icon="map-pin" />
+              <TabBtn id="sports" label="" icon="activity" />
+              <TabBtn id="social" label="" icon="link" />
+            </View>
+            <View className="mt-4 h-px bg-neutral-200 dark:bg-white/10" />
             {activeTab === "profile" ? (
-              <View className="gap-4">
+              <View className="mt-4 gap-4">
                 <View className="gap-2">
                   <Text className="text-sm font-playfair font-semibold text-neutral-900 dark:text-white/90">
                     Profile photo
                   </Text>
-                  <View className="flex-row items-center gap-4">
-                    <View className="h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-[#1F2B55]">
-                      {avatarUri ? (
-                        <Image source={{ uri: avatarUri }} className="h-full w-full" resizeMode="cover" />
-                      ) : (
-                        <Text className="text-3xl font-newsreader-bold text-white">{initial}</Text>
-                      )}
+                  <View className="flex-row items-center justify-center gap-4">
+                    <View className="relative">
+                      <View className="h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-[#1F2B55]">
+                        {avatarUri ? (
+                          <Image source={{ uri: avatarUri }} className="h-full w-full" resizeMode="cover" />
+                        ) : (
+                          <Text className="text-3xl font-newsreader-bold text-white">{initial}</Text>
+                        )}
+                      </View>
+                      <Pressable
+                        onPress={onChangeProfilePhoto}
+                        disabled={isLoading || uploadingProfilePhoto}
+                        hitSlop={8}
+                        className="absolute -bottom-0.5 -right-0.5 rounded-full bg-primary p-2 shadow-sm"
+                      >
+                        {uploadingProfilePhoto || isLoading ? (
+                          <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                          <Feather name="camera" size={16} color="#fff" />
+                        )}
+                      </Pressable>
                     </View>
-                    <Pressable
+                    {/* <Pressable
                       onPress={onChangeProfilePhoto}
+                      disabled={isLoading || uploadingProfilePhoto}
                       accessibilityRole="button"
                       accessibilityLabel="Change profile photo"
                       className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-white/5"
@@ -661,10 +710,11 @@ export default function Profile({ navigation }) {
                           Change photo
                         </Text>
                       </View>
-                    </Pressable>
+                    </Pressable> */}
                   </View>
                   <Text className="text-xs font-playfair text-neutral-500 dark:text-white/55">
-                    Tap Save changes below to upload a new photo.
+                    Photo uploads to your account when the spinner finishes — if something fails, you will see an error and
+                    the previous photo stays.
                   </Text>
                 </View>
 
@@ -702,7 +752,7 @@ export default function Profile({ navigation }) {
             ) : null}
 
             {activeTab === "address" ? (
-              <View className="gap-4">
+              <View className="mt-4 gap-4">
                 <Field
                   label="Street"
                   icon="map-pin"
@@ -743,7 +793,7 @@ export default function Profile({ navigation }) {
             ) : null}
 
             {activeTab === "sports" ? (
-              <View className="gap-4">
+              <View className="mt-4 gap-4">
                 <View>
                   <Text className="text-lg font-newsreader-bold text-neutral-900 dark:text-white">
                     My Sports Profile
@@ -962,7 +1012,7 @@ export default function Profile({ navigation }) {
             ) : null}
 
             {activeTab === "social" ? (
-              <View className="gap-4">
+              <View className="mt-4 gap-4">
                 <Field
                   label="Facebook"
                   icon="facebook"
@@ -997,17 +1047,19 @@ export default function Profile({ navigation }) {
               </View>
             ) : null}
 
-            <Pressable
-              onPress={saveProfile}
-              disabled={isLoading}
-              className={[
-                "mt-6 h-12 flex-row items-center justify-center gap-2 rounded-2xl bg-primary",
-                isLoading ? "opacity-70" : "opacity-100",
-              ].join(" ")}
-            >
-              {isLoading ? <ActivityIndicator color="#fff" /> : <Feather name="save" size={18} color="#fff" />}
-              <Text className="text-base font-newsreader-bold text-white">Save changes</Text>
-            </Pressable>
+            <View className="mt-5">
+              <Pressable
+                onPress={saveProfile}
+                disabled={isLoading}
+                className={[
+                  "h-12 flex-row items-center justify-center gap-2 rounded-2xl bg-primary",
+                  isLoading ? "opacity-70" : "opacity-100",
+                ].join(" ")}
+              >
+                {isLoading ? <ActivityIndicator color="#fff" /> : <Feather name="save" size={18} color="#fff" />}
+                <Text className="text-base font-newsreader-bold text-white">Save changes</Text>
+              </Pressable>
+            </View>
 
             <Pressable
               onPress={onLogout}
