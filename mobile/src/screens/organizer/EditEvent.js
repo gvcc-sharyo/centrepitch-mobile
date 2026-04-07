@@ -8,7 +8,7 @@ import LabeledIconInput from "../../components/forms/LabeledIconInput";
 import OrganizerScreenShell from "../../components/organizer/OrganizerScreenShell";
 import eventService from "../../services/eventService";
 import { selectTheme } from "../../store/slices/uiSlice";
-import { formatDate, getErrorMessage } from "../../utils/helpers";
+import { formatCurrency, formatDate, getErrorMessage } from "../../utils/helpers";
 import { toast } from "../../utils/toast";
 
 export default function EditEvent() {
@@ -29,6 +29,7 @@ export default function EditEvent() {
   const [country, setCountry] = useState("");
   const [registrationFee, setRegistrationFee] = useState("0");
   const [isPublished, setIsPublished] = useState(false);
+  const [publishPricing, setPublishPricing] = useState(null);
 
   const load = useCallback(async () => {
     if (!eventId) {
@@ -48,6 +49,18 @@ export default function EditEvent() {
       setCountry(ev?.location?.country || "");
       setRegistrationFee(String(ev?.registrationFee ?? 0));
       setIsPublished(Boolean(ev?.isPublished));
+      const sportRef = ev?.sport;
+      const sportId = sportRef && typeof sportRef === "object" ? sportRef._id : sportRef;
+      if (sportId) {
+        try {
+          const pr = await eventService.getPublishPricing({ sportId: String(sportId) });
+          setPublishPricing(pr?.data ?? pr);
+        } catch {
+          setPublishPricing(null);
+        }
+      } else {
+        setPublishPricing(null);
+      }
     } catch (e) {
       toast.error(getErrorMessage(e) || "Failed to load event");
       setEvent(null);
@@ -142,6 +155,14 @@ export default function EditEvent() {
             <Feather name={isPublished ? "check-square" : "square"} size={22} color={isDark ? "#fff" : "#111"} />
             <Text className="flex-1 font-playfair text-neutral-900 dark:text-white">Published (visible to players)</Text>
           </Pressable>
+          {publishPricing && typeof publishPricing.totalAmount === "number" ? (
+            <View className="mt-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 dark:border-white/10 dark:bg-white/5">
+              <Text className="font-playfair text-sm text-neutral-700 dark:text-white/80">
+                Publish pricing (platform): {formatCurrency(publishPricing.totalAmount, publishPricing.currency || "INR")}{" "}
+                incl. GST ({publishPricing.gstPercent ?? 0}% on {formatCurrency(publishPricing.baseAmount ?? 0, publishPricing.currency || "INR")} base)
+              </Text>
+            </View>
+          ) : null}
 
           <Pressable
             onPress={save}

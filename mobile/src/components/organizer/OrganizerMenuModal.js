@@ -10,6 +10,9 @@ import { selectMobileMenuOpen, selectTheme, setMobileMenuOpen } from "../../stor
 
 const MENU_ITEMS = [
   { label: "Sports configuration", tab: SCREENS.OrganizerTabHome, screen: SCREENS.OrganizerSports, icon: "award" },
+  { label: "Revenue analytics", tab: SCREENS.OrganizerTabHome, screen: SCREENS.OrganizerRevenueAnalytics, icon: "bar-chart-2" },
+  { label: "Scorer accounts", tab: SCREENS.OrganizerTabHome, screen: SCREENS.OrganizerScorers, icon: "edit-3" },
+  { label: "Coach teams", tab: SCREENS.OrganizerTabTeams, screen: SCREENS.OrganizerCoachTeams, icon: "users" },
   { label: "Contact admin", tab: SCREENS.OrganizerTabHome, screen: SCREENS.OrganizerContactAdmin, icon: "mail" },
   { label: "My queries", tab: SCREENS.OrganizerTabHome, screen: SCREENS.OrganizerMyQueriesScreen, icon: "message-square" },
   { label: "Settings", tab: SCREENS.OrganizerTabProfile, screen: SCREENS.Settings, icon: "settings" },

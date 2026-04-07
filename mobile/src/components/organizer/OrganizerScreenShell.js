@@ -35,7 +35,7 @@ export default function OrganizerScreenShell({ title, children, scrollable = tru
     <View className="flex-1 bg-white dark:bg-[#1F2B55]">
       <AppHeaderBar onPressNotifications={onPressNotifications} />
       {title ? (
-        <View className="flex-row items-center border-b border-neutral-200 px-4 py-2 dark:border-white/10">
+        <View className="flex-row items-center px-4 py-2 dark:border-white/10">
           {showBack ? (
             <Pressable
               onPress={() => goBackIfPossible()}

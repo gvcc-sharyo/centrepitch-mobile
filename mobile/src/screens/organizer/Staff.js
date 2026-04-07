@@ -2,8 +2,11 @@
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
+  Pressable,
   RefreshControl,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
 } from "react-native";
@@ -23,6 +26,12 @@ export default function Staff() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [staff, setStaff] = useState([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [role, setRole] = useState("Event staff");
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async (isRefresh) => {
     try {
@@ -43,6 +52,33 @@ export default function Staff() {
   useEffect(() => {
     load(false);
   }, [load]);
+
+  const createStaff = async () => {
+    if (!name.trim() || !email.trim()) {
+      toast.error("Name and email are required");
+      return;
+    }
+    setSaving(true);
+    try {
+      await staffService.createStaff({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim() || undefined,
+        role: role.trim() || "Event staff",
+      });
+      toast.success("Staff member created");
+      setModalOpen(false);
+      setName("");
+      setEmail("");
+      setPhone("");
+      setRole("Event staff");
+      load(false);
+    } catch (e) {
+      toast.error(getErrorMessage(e) || "Could not create");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const numColumns = width >= 700 ? 2 : 1;
 
@@ -74,12 +110,16 @@ export default function Staff() {
   );
 
   return (
-    <OrganizerScreenShell title="Staff" scrollable={false}>
+    <OrganizerScreenShell title="Staff" scrollable={false} showBack={false}>
       <View className="w-full max-w-[720px] flex-1 self-center">
         <View className="mb-3 rounded-2xl border border-neutral-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
           <Text className="font-playfair text-sm text-neutral-600 dark:text-white/65">
-            Manage staff on the web for full create/edit. Here you can review your roster on the go.
+            Create staff here, assign them to events from each event&apos;s Event staff screen, or use the web dashboard
+            for advanced edits.
           </Text>
+          <Pressable onPress={() => setModalOpen(true)} className="mt-3 items-center rounded-2xl bg-primary py-3">
+            <Text className="font-newsreader-bold text-white">Add staff member</Text>
+          </Pressable>
         </View>
         {loading && staff.length === 0 ? (
           <View className="flex-1 items-center justify-center py-20">
@@ -104,6 +144,52 @@ export default function Staff() {
           />
         )}
       </View>
+
+      <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={() => setModalOpen(false)}>
+        <Pressable className="flex-1 justify-end bg-black/50" onPress={() => setModalOpen(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()} className="rounded-t-3xl bg-white p-5 dark:bg-[#1F2B55]">
+            <Text className="font-newsreader-bold text-lg text-neutral-900 dark:text-white">New staff</Text>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Name"
+              placeholderTextColor="rgba(107,114,128,0.9)"
+              className="mt-4 rounded-2xl border border-neutral-200 px-4 py-3 font-playfair dark:border-white/10 dark:text-white"
+            />
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholderTextColor="rgba(107,114,128,0.9)"
+              className="mt-2 rounded-2xl border border-neutral-200 px-4 py-3 font-playfair dark:border-white/10 dark:text-white"
+            />
+            <TextInput
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Phone (optional)"
+              keyboardType="phone-pad"
+              placeholderTextColor="rgba(107,114,128,0.9)"
+              className="mt-2 rounded-2xl border border-neutral-200 px-4 py-3 font-playfair dark:border-white/10 dark:text-white"
+            />
+            <TextInput
+              value={role}
+              onChangeText={setRole}
+              placeholder="Role"
+              placeholderTextColor="rgba(107,114,128,0.9)"
+              className="mt-2 rounded-2xl border border-neutral-200 px-4 py-3 font-playfair dark:border-white/10 dark:text-white"
+            />
+            <Pressable
+              onPress={createStaff}
+              disabled={saving}
+              className="mt-4 items-center rounded-2xl bg-primary py-3.5 disabled:opacity-50"
+            >
+              {saving ? <ActivityIndicator color="#fff" /> : <Text className="font-newsreader-bold text-white">Save</Text>}
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </OrganizerScreenShell>
   );
 }

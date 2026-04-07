@@ -63,20 +63,10 @@ const uploadService = {
 
   uploadProfilePhoto: async (file) => postUploadMultipart("/upload/profile-photo", file),
 
-  // Upload team logo
-  uploadTeamLogo: async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const response = await api.post('/upload/team-logo', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    return response.data;
-  },
+  /** Team/org logo — same `fetch` multipart path as profile photo (reliable on RN Android). */
+  uploadTeamLogo: async (file) => postUploadMultipart("/upload/team-logo", file),
 
-  // Upload sport icon (admin)
+  // Upload sport icon (admin) — axios fallback
   uploadSportIcon: async (file) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -85,6 +75,9 @@ const uploadService = {
     });
     return response.data;
   },
+
+  /** Sport icon — `fetch` multipart (reliable on RN Android). */
+  uploadSportIconMultipart: async (file) => postUploadMultipart("/upload/file?folder=sport_icons", file),
 
   // Upload sport cover image (admin)
   uploadSportImage: async (file) => {
@@ -95,6 +88,9 @@ const uploadService = {
     });
     return response.data;
   },
+
+  /** Sport cover — `fetch` multipart (reliable on RN Android). */
+  uploadSportImageMultipart: async (file) => postUploadMultipart("/upload/file?folder=sport_images", file),
 
   // Generic file upload
   uploadFile: async (file, folder = 'uploads') => {

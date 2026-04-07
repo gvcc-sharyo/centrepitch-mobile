@@ -14,6 +14,7 @@ import Feather from "@expo/vector-icons/Feather";
 import PlayerScreenShell from "../../components/player/PlayerScreenShell";
 import { SCREENS } from "../../constants/navigation";
 import courtSubscriptionService from "../../services/courtSubscriptionService";
+import subscriptionService from "../../services/subscriptionService";
 import { getErrorMessage } from "../../utils/helpers";
 import { toast } from "../../utils/toast";
 
@@ -38,10 +39,29 @@ export default function MySubscriptions() {
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
-      const res = await courtSubscriptionService.getMySubscriptions();
-      const body = res.data;
-      const rows = body?.data ?? body?.subscriptions ?? [];
-      setItems(Array.isArray(rows) ? rows : []);
+      const [courtRes, roleRes] = await Promise.all([
+        courtSubscriptionService.getMySubscriptions().catch(() => ({ data: {} })),
+        subscriptionService.getMySubscriptionHistory().catch(() => ({ data: {} })),
+      ]);
+
+      const courtBody = courtRes?.data ?? {};
+      const courtRows = courtBody?.data ?? courtBody?.subscriptions ?? [];
+      const courtList = Array.isArray(courtRows)
+        ? courtRows.map((row) => ({ ...row, kind: "court" }))
+        : [];
+
+      const roleBody = roleRes?.data ?? {};
+      const roleRows = roleBody?.data ?? [];
+      const roleList = Array.isArray(roleRows)
+        ? roleRows.map((row) => ({ ...row, kind: "role" }))
+        : [];
+
+      const merged = [...courtList, ...roleList].sort((a, b) => {
+        const ta = new Date(a.createdAt || a.startsAt || 0).getTime();
+        const tb = new Date(b.createdAt || b.startsAt || 0).getTime();
+        return tb - ta;
+      });
+      setItems(merged);
     } catch (e) {
       toast.error(getErrorMessage(e) || "Failed to load subscriptions");
       setItems([]);
@@ -126,7 +146,7 @@ export default function MySubscriptions() {
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={(item) => String(item._id)}
+          keyExtractor={(item) => `${item.kind}-${String(item._id)}`}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
           ListEmptyComponent={
             <Text className="py-10 text-center font-playfair text-neutral-600 dark:text-white/60">No subscriptions.</Text>
@@ -148,8 +168,27 @@ export default function MySubscriptions() {
               {item.academy?.name ? (
                 <Text className="mt-1 font-playfair text-xs text-neutral-500 dark:text-white/55">{item.academy.name}</Text>
               ) : null}
+              {item.kind === "role" && (item.roleRef?.displayName || item.role) ? (
+                <Text className="mt-2 font-playfair text-sm text-neutral-600 dark:text-white/65">
+                  Role: {item.roleRef?.displayName || item.role}
+                </Text>
+              ) : null}
+              {item.kind === "court" ? (
+                <Text className="mt-1 font-playfair text-[10px] uppercase tracking-wide text-neutral-400 dark:text-white/45">
+                  Court subscription
+                </Text>
+              ) : (
+                <Text className="mt-1 font-playfair text-[10px] uppercase tracking-wide text-neutral-400 dark:text-white/45">
+                  Plan subscription
+                </Text>
+              )}
               <Pressable
-                onPress={() => navigation.navigate(SCREENS.SubscriptionDetails, { subscriptionId: String(item._id) })}
+                onPress={() =>
+                  navigation.navigate(SCREENS.SubscriptionDetails, {
+                    subscriptionId: String(item._id),
+                    subscriptionKind: item.kind,
+                  })
+                }
                 className="mt-3 self-start rounded-lg border border-primary/40 px-3 py-1.5"
               >
                 <Text className="font-playfair text-xs font-semibold text-primary">Details</Text>

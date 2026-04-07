@@ -124,7 +124,7 @@ export default function Settings() {
                   <View className="min-w-0 flex-1">
                     <Text
                       className={[
-                        "font-playfair text-[17px] leading-snug",
+                        "font-playfair text-[12px] leading-snug",
                         selected ? "font-semibold" : "font-medium",
                       ].join(" ")}
                       style={{ color: themeOptionTitleColor(selected, isDark) }}

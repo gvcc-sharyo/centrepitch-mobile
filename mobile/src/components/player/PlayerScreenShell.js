@@ -22,7 +22,7 @@ export default function PlayerScreenShell({ title, children, scrollable = true, 
     <View className="flex-1 bg-white dark:bg-[#1F2B55]">
       <AppHeaderBar />
       {title ? (
-        <View className="flex-row items-center border-b border-neutral-200 px-4 py-2 dark:border-white/10">
+        <View className="flex-row items-center  px-4 py-2 dark:border-white/10">
           {showBack ? (
             <Pressable
               onPress={() => goBackIfPossible()}

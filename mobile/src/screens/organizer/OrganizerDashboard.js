@@ -92,6 +92,12 @@ export default function OrganizerDashboard() {
         tab: SCREENS.OrganizerTabEvents,
         screen: SCREENS.OrganizerCreateEvent,
       },
+      {
+        label: "Revenue analytics",
+        icon: "bar-chart-2",
+        tab: SCREENS.OrganizerTabHome,
+        screen: SCREENS.OrganizerRevenueAnalytics,
+      },
     ],
     []
   );

@@ -259,6 +259,99 @@ export default function EventDetails() {
                   <Text className="font-newsreader-bold text-neutral-900 dark:text-white">Reschedule</Text>
                 </Pressable>
                 <Pressable
+                  onPress={() =>
+                    navigation.navigate(SCREENS.OrganizerTabEvents, {
+                      screen: SCREENS.OrganizerEventAnnouncement,
+                      params: { eventId: String(eventId) },
+                    })
+                  }
+                  accessibilityRole="button"
+                  className="items-center rounded-2xl border border-neutral-300 py-3.5 dark:border-white/20"
+                >
+                  <Text className="font-newsreader-bold text-neutral-900 dark:text-white">Announcement</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() =>
+                    navigation.navigate(SCREENS.OrganizerTabEvents, {
+                      screen: SCREENS.OrganizerEventRevenue,
+                      params: { eventId: String(eventId) },
+                    })
+                  }
+                  accessibilityRole="button"
+                  className="items-center rounded-2xl border border-neutral-300 py-3.5 dark:border-white/20"
+                >
+                  <Text className="font-newsreader-bold text-neutral-900 dark:text-white">Revenue</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() =>
+                    navigation.navigate(SCREENS.OrganizerTabEvents, {
+                      screen: SCREENS.OrganizerEventScorers,
+                      params: { eventId: String(eventId) },
+                    })
+                  }
+                  accessibilityRole="button"
+                  className="items-center rounded-2xl border border-neutral-300 py-3.5 dark:border-white/20"
+                >
+                  <Text className="font-newsreader-bold text-neutral-900 dark:text-white">Scorers (event)</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() =>
+                    navigation.navigate(SCREENS.OrganizerTabHome, { screen: SCREENS.OrganizerScorers })
+                  }
+                  accessibilityRole="button"
+                  className="items-center rounded-2xl border border-neutral-300 py-3.5 dark:border-white/20"
+                >
+                  <Text className="font-newsreader-bold text-neutral-900 dark:text-white">Scorer accounts</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() =>
+                    navigation.navigate(SCREENS.OrganizerTabEvents, {
+                      screen: SCREENS.OrganizerAddTeamToEvent,
+                      params: { eventId: String(eventId) },
+                    })
+                  }
+                  accessibilityRole="button"
+                  className="items-center rounded-2xl border border-neutral-300 py-3.5 dark:border-white/20"
+                >
+                  <Text className="font-newsreader-bold text-neutral-900 dark:text-white">Add team</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() =>
+                    navigation.navigate(SCREENS.OrganizerTabEvents, {
+                      screen: SCREENS.OrganizerEventStaff,
+                      params: { eventId: String(eventId) },
+                    })
+                  }
+                  accessibilityRole="button"
+                  className="items-center rounded-2xl border border-neutral-300 py-3.5 dark:border-white/20"
+                >
+                  <Text className="font-newsreader-bold text-neutral-900 dark:text-white">Event staff</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() =>
+                    navigation.navigate(SCREENS.OrganizerTabEvents, {
+                      screen: SCREENS.OrganizerBulkNotifications,
+                      params: { eventId: String(eventId) },
+                    })
+                  }
+                  accessibilityRole="button"
+                  className="items-center rounded-2xl border border-neutral-300 py-3.5 dark:border-white/20"
+                >
+                  <Text className="font-newsreader-bold text-neutral-900 dark:text-white">Bulk notify</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() =>
+                    navigation.navigate(SCREENS.OrganizerTabEvents, {
+                      screen: SCREENS.OrganizerRegisteredPlayers,
+                      params: { eventId: String(eventId) },
+                    })
+                  }
+                  accessibilityRole="button"
+                  className="items-center rounded-2xl border border-neutral-300 py-3.5 dark:border-white/20"
+                >
+                  <Text className="font-newsreader-bold text-neutral-900 dark:text-white">Player list (API)</Text>
+                </Pressable>
+                <Pressable
                   onPress={handleDeleteEvent}
                   disabled={deleting}
                   accessibilityRole="button"
