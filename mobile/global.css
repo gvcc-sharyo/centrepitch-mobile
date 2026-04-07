@@ -1,0 +1,198 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Migrated from frontend/src/index.css — component patterns for React Native + NativeWind.
+ * Omit web-only pseudo-states where unsupported; keep visual parity where possible.
+ */
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary text-white;
+  }
+
+  .btn-secondary {
+    @apply btn bg-secondary text-white;
+  }
+
+  .btn-outline {
+    @apply btn border-2 border-primary text-primary;
+  }
+
+  .btn-outline-secondary {
+    @apply btn border-2 border-secondary text-secondary;
+  }
+
+  .btn-ghost {
+    @apply btn text-gray-600 dark:text-gray-300;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-500 text-white;
+  }
+
+  .input {
+    @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white;
+  }
+
+  .input-error {
+    @apply border-red-500;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1.5 dark:text-gray-300;
+  }
+
+  /* Auth / form primitives (mobile-first, matches app auth design) */
+  .auth-title {
+    @apply text-3xl font-newsreader-bold text-neutral-900 dark:text-white;
+  }
+
+  .auth-subtitle {
+    @apply mt-1.5 text-sm font-playfair text-neutral-600 dark:text-white/70;
+  }
+
+  .auth-provider-btn {
+    @apply h-12 flex-row items-center justify-center gap-2.5 rounded-2xl border border-neutral-200 bg-white dark:border-white/10 dark:bg-white/5;
+  }
+
+  .auth-divider {
+    @apply my-2 flex-row items-center gap-3;
+  }
+
+  .auth-divider-line {
+    @apply h-px flex-1 bg-neutral-200 dark:bg-white/10;
+  }
+
+  .auth-divider-text {
+    @apply text-xs font-playfair text-neutral-500 dark:text-white/50;
+  }
+
+  .auth-field {
+    @apply gap-2;
+  }
+
+  .auth-label {
+    @apply text-sm font-playfair font-semibold text-neutral-800 dark:text-white/80;
+  }
+
+  .auth-input-row {
+    @apply h-12 flex-row items-center gap-3 rounded-2xl border border-neutral-200 bg-white px-4 dark:border-white/10 dark:bg-white/5;
+  }
+
+  .auth-input {
+    @apply flex-1 text-base font-playfair text-neutral-900 dark:text-white;
+  }
+
+  .auth-primary-btn {
+    @apply h-12 flex-row items-center justify-center gap-2.5 rounded-2xl bg-primary;
+  }
+
+  .auth-primary-btn-text {
+    @apply text-base font-playfair-bold text-white;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6 dark:bg-gray-800 dark:border-gray-700;
+  }
+
+  .card-hover {
+    @apply card;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply badge bg-primary/10 text-primary;
+  }
+
+  .badge-secondary {
+    @apply badge bg-secondary/10 text-secondary;
+  }
+
+  .badge-success {
+    @apply badge bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300;
+  }
+
+  .badge-warning {
+    @apply badge bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300;
+  }
+
+  .badge-danger {
+    @apply badge bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300;
+  }
+
+  .badge-info {
+    @apply badge bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300;
+  }
+
+  .stat-card {
+    @apply card flex flex-col;
+  }
+
+  .stat-card-value {
+    @apply text-2xl font-bold text-gray-900 dark:text-white;
+  }
+
+  .stat-card-label {
+    @apply text-sm font-playfair text-gray-500 dark:text-gray-400;
+  }
+
+  .modal-overlay {
+    @apply bg-black/50;
+  }
+
+  .modal {
+    @apply bg-white rounded-xl shadow-xl dark:bg-gray-800;
+  }
+
+  .modal-header {
+    @apply flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700;
+  }
+
+  .modal-body {
+    @apply p-4 overflow-y-auto min-h-0 flex-1;
+  }
+
+  .modal-footer {
+    @apply flex justify-end gap-3 p-4 border-t border-gray-100 dark:border-gray-700;
+  }
+
+  .font-playfair {
+    font-family: PlayfairDisplay_400Regular, Georgia, serif;
+  }
+
+  /* Default stack = body (Playfair). Headings use `font-newsreader-*` utilities. */
+  .font-sans {
+    font-family: PlayfairDisplay_400Regular, Georgia, serif;
+  }
+}
+
+@layer utilities {
+  .gradient-primary {
+    @apply bg-gradient-to-r from-primary to-primary-600;
+  }
+
+  .gradient-secondary {
+    @apply bg-gradient-to-r from-secondary to-secondary-600;
+  }
+
+  .gradient-mixed {
+    @apply bg-gradient-to-r from-primary to-secondary;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+}

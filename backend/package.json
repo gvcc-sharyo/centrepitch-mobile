@@ -1,0 +1,41 @@
+{
+  "name": "sports-event-management-backend",
+  "version": "1.0.0",
+  "description": "Backend for Sports Event Management Application",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "backfill:training-ownership": "node backfillTrainingOwnership.js",
+    "backfill:subscription-history-payments": "node backfillSubscriptionHistoryPayments.js",
+    "backfill:subscription-history-payments:dry": "node backfillSubscriptionHistoryPayments.js --dry-run"
+  },
+  "keywords": [
+    "sports",
+    "events",
+    "management"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.955.0",
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.5.1",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-validator": "^7.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.2",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^8.0.1",
+    "sharp": "^0.34.5",
+    "socket.io": "^4.8.3",
+    "stripe": "^17.4.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

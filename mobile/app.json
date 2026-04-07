@@ -1,0 +1,69 @@
+{
+  "expo": {
+    "name": "Centre Pitch",
+    "slug": "Centre Pitch",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/public/cp-logo.png",
+    "userInterfaceStyle": "automatic",
+    "androidNavigationBar": {
+      "enforceContrast": true
+    },
+    "scheme": "centrepitch",
+    "splash": {
+      "image": "./assets/public/cp-white-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1F2B55"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/public/cp-white-logo.png",
+        "backgroundColor": "#1F2B55"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.anonymous.CentrePitch",
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/public/cp-logo.png"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "backgroundColor": "#FFFFFF",
+          "barStyle": "dark",
+          "visibility": "visible",
+          "behavior": "inset-swipe"
+        }
+      ],
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow access to your photos to set a profile picture.",
+          "cameraPermission": "Allow camera access to take a profile picture."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Centre Pitch to use your location for nearby courts, events, and your selected area.",
+          "locationWhenInUsePermission": "Allow Centre Pitch to use your location for nearby courts, events, and your selected area."
+        }
+      ]
+    ]
+  }
+}
