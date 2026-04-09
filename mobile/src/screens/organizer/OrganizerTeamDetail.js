@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
+import Feather from "@expo/vector-icons/Feather";
 
 import OrganizerScreenShell from "../../components/organizer/OrganizerScreenShell";
 import { SCREENS } from "../../constants/navigation";
+import organizerService from "../../services/organizerService";
 import teamService from "../../services/teamService";
 import { selectUser } from "../../store/slices/authSlice";
 import { getErrorMessage } from "../../utils/helpers";
@@ -42,6 +44,27 @@ function memberLabel(m) {
   return m?.name || m?.email || "Member";
 }
 
+function memberEmailsAndUserIds(team) {
+  const emails = new Set();
+  const userIds = new Set();
+  const raw = Array.isArray(team?.members) ? team.members : [];
+  for (const m of raw) {
+    const em = String(m?.email ?? m?.player?.email ?? "").trim().toLowerCase();
+    if (em) emails.add(em);
+    const p = m?.player;
+    const id = p && typeof p === "object" && p._id ? String(p._id) : typeof p === "string" ? p : "";
+    if (id) userIds.add(id);
+  }
+  return { emails, userIds };
+}
+
+function playerRowLabel(p) {
+  const name = String(p?.name || "").trim();
+  const email = String(p?.email || "").trim();
+  if (name && email) return `${name} — ${email}`;
+  return email || name || "Player";
+}
+
 export default function OrganizerTeamDetail() {
   const route = useRoute();
   const navigation = useNavigation();
@@ -50,12 +73,12 @@ export default function OrganizerTeamDetail() {
 
   const [loading, setLoading] = useState(true);
   const [team, setTeam] = useState(null);
-  const [addOpen, setAddOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [playerIdInput, setPlayerIdInput] = useState("");
-  const [memberRole, setMemberRole] = useState("player");
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [inviteablePlayers, setInviteablePlayers] = useState([]);
+  const [loadingInviteablePlayers, setLoadingInviteablePlayers] = useState(false);
+  const [selectedInvitePlayerId, setSelectedInvitePlayerId] = useState("");
+  const [inviteSearch, setInviteSearch] = useState("");
+  const [inviting, setInviting] = useState(false);
 
   const load = useCallback(async () => {
     if (!teamId) {
@@ -67,9 +90,11 @@ export default function OrganizerTeamDetail() {
       const res = await teamService.getTeamById(String(teamId));
       const data = res?.data ?? res;
       setTeam(data);
+      return data;
     } catch (e) {
       toast.error(getErrorMessage(e) || "Failed to load team");
       setTeam(null);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -84,6 +109,53 @@ export default function OrganizerTeamDetail() {
 
   const card =
     "rounded-2xl border border-neutral-200 bg-white p-4 dark:border-white/10 dark:bg-white/5";
+
+  const loadInviteablePlayers = useCallback(
+    async (teamSnapshot = null) => {
+      const activeTeam = teamSnapshot || team;
+      const teamSportName = String(activeTeam?.sport?.name || activeTeam?.sportName || "").trim();
+      if (!teamSportName) {
+        setInviteablePlayers([]);
+        return;
+      }
+
+      try {
+        setLoadingInviteablePlayers(true);
+        const res = await organizerService.getAvailablePlayers({
+          limit: 500,
+          sportsOnly: true,
+          teamSportName,
+          excludeIfInTeamSport: "1",
+        });
+        const all = Array.isArray(res?.data) ? res.data : [];
+
+        const selectedGender = String(activeTeam?.genderCategory || "").toLowerCase();
+        const genderFiltered = all.filter((p) => {
+          const g = String(p?.gender || "").toLowerCase();
+          if (selectedGender === "male") return !g || g === "male";
+          if (selectedGender === "female") return !g || g === "female";
+          return true;
+        });
+
+        const { emails: memberEmailsLower, userIds: memberUserIds } = memberEmailsAndUserIds(activeTeam);
+        const filtered = genderFiltered.filter((p) => {
+          const email = String(p?.email || "").trim().toLowerCase();
+          const userId = String(p?._id || "").trim();
+          if (!email) return false;
+          if (memberEmailsLower.has(email)) return false;
+          if (userId && memberUserIds.has(userId)) return false;
+          return true;
+        });
+
+        setInviteablePlayers(filtered);
+      } catch {
+        setInviteablePlayers([]);
+      } finally {
+        setLoadingInviteablePlayers(false);
+      }
+    },
+    [team],
+  );
 
   const deleteTeam = () => {
     if (!teamId || !manage) return;
@@ -103,29 +175,6 @@ export default function OrganizerTeamDetail() {
         },
       },
     ]);
-  };
-
-  const addMember = async () => {
-    if (!teamId || !playerIdInput.trim()) {
-      toast.error("Enter the player’s user id (Mongo id)");
-      return;
-    }
-    setBusy(true);
-    try {
-      await teamService.addMember(String(teamId), {
-        playerId: playerIdInput.trim(),
-        role: memberRole || "player",
-      });
-      toast.success("Member added");
-      setAddOpen(false);
-      setPlayerIdInput("");
-      setMemberRole("player");
-      load();
-    } catch (e) {
-      toast.error(getErrorMessage(e) || "Could not add member");
-    } finally {
-      setBusy(false);
-    }
   };
 
   const removeMember = (pid, label) => {
@@ -152,24 +201,46 @@ export default function OrganizerTeamDetail() {
     ]);
   };
 
-  const sendInvite = async () => {
-    if (!teamId || !inviteEmail.trim()) {
-      toast.error("Email is required");
+  const openInviteModal = async () => {
+    if (!teamId) return;
+    setInviteOpen(true);
+    setSelectedInvitePlayerId("");
+    setInviteSearch("");
+    const latest = (await load()) || team;
+    await loadInviteablePlayers(latest || team);
+  };
+
+  const inviteSelectedPlayer = async () => {
+    const selected = inviteablePlayers.find((p) => String(p?._id) === String(selectedInvitePlayerId));
+    const email = String(selected?.email || "").trim().toLowerCase();
+    if (!email) {
+      toast.error("Please select a player");
       return;
     }
-    setBusy(true);
+    setInviting(true);
     try {
-      await teamService.invitePlayer(String(teamId), inviteEmail.trim());
+      await teamService.invitePlayer(String(teamId), email);
       toast.success("Invitation sent");
+      setSelectedInvitePlayerId("");
+      const latest = await load();
+      await loadInviteablePlayers(latest || team);
       setInviteOpen(false);
-      setInviteEmail("");
-      load();
     } catch (e) {
       toast.error(getErrorMessage(e) || "Invite failed");
     } finally {
-      setBusy(false);
+      setInviting(false);
     }
   };
+
+  const filteredInviteablePlayers = useMemo(() => {
+    const q = String(inviteSearch || "").trim().toLowerCase();
+    if (!q) return inviteablePlayers;
+    return inviteablePlayers.filter((p) => {
+      const name = String(p?.name || "").toLowerCase();
+      const email = String(p?.email || "").toLowerCase();
+      return name.includes(q) || email.includes(q);
+    });
+  }, [inviteSearch, inviteablePlayers]);
 
   return (
     <OrganizerScreenShell title="Team detail" scrollable={false}>
@@ -191,11 +262,14 @@ export default function OrganizerTeamDetail() {
               >
                 <Text className="font-newsreader-bold text-white">Edit</Text>
               </Pressable>
-              <Pressable onPress={() => setAddOpen(true)} className="rounded-2xl border border-neutral-300 px-4 py-2.5 dark:border-white/20">
-                <Text className="font-newsreader-bold text-neutral-900 dark:text-white">Add member</Text>
+              <Pressable
+                onPress={() => navigation.navigate(SCREENS.OrganizerTeamPlayers, { teamId: String(teamId) })}
+                className="rounded-2xl border border-neutral-300 px-4 py-2.5 dark:border-white/20"
+              >
+                <Text className="font-newsreader-bold text-neutral-900 dark:text-white">Manage players</Text>
               </Pressable>
-              <Pressable onPress={() => setInviteOpen(true)} className="rounded-2xl border border-neutral-300 px-4 py-2.5 dark:border-white/20">
-                <Text className="font-newsreader-bold text-neutral-900 dark:text-white">Invite by email</Text>
+              <Pressable onPress={openInviteModal} className="rounded-2xl border border-neutral-300 px-4 py-2.5 dark:border-white/20">
+                <Text className="font-newsreader-bold text-neutral-900 dark:text-white">Invite players</Text>
               </Pressable>
               <Pressable onPress={deleteTeam} className="rounded-2xl border border-red-400 px-4 py-2.5 dark:border-red-500/50">
                 <Text className="font-newsreader-bold text-red-600 dark:text-red-400">Delete team</Text>
@@ -262,68 +336,70 @@ export default function OrganizerTeamDetail() {
         </ScrollView>
       )}
 
-      <Modal visible={addOpen} transparent animationType="slide" onRequestClose={() => setAddOpen(false)}>
-        <Pressable className="flex-1 justify-end bg-black/50" onPress={() => setAddOpen(false)}>
-          <Pressable onPress={(e) => e.stopPropagation()} className="rounded-t-3xl bg-white p-5 dark:bg-[#1F2B55]">
-            <Text className="font-newsreader-bold text-lg text-neutral-900 dark:text-white">Add member</Text>
-            <Text className="mt-2 font-playfair text-xs text-neutral-500 dark:text-white/55">
-              Paste the player&apos;s User id (Mongo ObjectId). They must already have an account.
-            </Text>
-            <TextInput
-              value={playerIdInput}
-              onChangeText={setPlayerIdInput}
-              placeholder="User id"
-              autoCapitalize="none"
-              placeholderTextColor="rgba(107,114,128,0.9)"
-              className="mt-3 rounded-2xl border border-neutral-200 px-4 py-3 font-playfair dark:border-white/10 dark:text-white"
-            />
-            <Text className="mt-3 font-playfair text-xs text-neutral-500 dark:text-white/55">Role</Text>
-            <View className="mt-2 flex-row flex-wrap gap-2">
-              {["player", "captain", "vice_captain"].map((r) => (
-                <Pressable
-                  key={r}
-                  onPress={() => setMemberRole(r)}
-                  className={`rounded-full px-3 py-1 ${memberRole === r ? "bg-primary" : "border border-neutral-200 dark:border-white/15"}`}
-                >
-                  <Text className={`font-playfair text-xs ${memberRole === r ? "text-white" : "text-neutral-800 dark:text-white/85"}`}>
-                    {r}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <Pressable
-              onPress={addMember}
-              disabled={busy}
-              className="mt-5 items-center rounded-2xl bg-primary py-3.5 disabled:opacity-50"
-            >
-              {busy ? <ActivityIndicator color="#fff" /> : <Text className="font-newsreader-bold text-white">Add</Text>}
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
       <Modal visible={inviteOpen} transparent animationType="slide" onRequestClose={() => setInviteOpen(false)}>
         <Pressable className="flex-1 justify-end bg-black/50" onPress={() => setInviteOpen(false)}>
           <Pressable onPress={(e) => e.stopPropagation()} className="rounded-t-3xl bg-white p-5 dark:bg-[#1F2B55]">
-            <Text className="font-newsreader-bold text-lg text-neutral-900 dark:text-white">Invite by email</Text>
+            <Text className="font-newsreader-bold text-lg text-neutral-900 dark:text-white">Invite players</Text>
             <Text className="mt-2 font-playfair text-xs text-neutral-500 dark:text-white/55">
-              The user must already be registered on Centre Pitch with this email.
+              Only accounts with this sport on their profile are listed. Players join your roster after they accept the invite.
             </Text>
-            <TextInput
-              value={inviteEmail}
-              onChangeText={setInviteEmail}
-              placeholder="player@example.com"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              placeholderTextColor="rgba(107,114,128,0.9)"
-              className="mt-3 rounded-2xl border border-neutral-200 px-4 py-3 font-playfair dark:border-white/10 dark:text-white"
-            />
+
+            {loadingInviteablePlayers ? (
+              <View className="py-8 items-center justify-center">
+                <ActivityIndicator color="#1F2B55" />
+                <Text className="mt-2 font-playfair text-xs text-neutral-500 dark:text-white/55">Loading players…</Text>
+              </View>
+            ) : (
+              <View className="mt-3 rounded-2xl border border-neutral-200 dark:border-white/10 overflow-hidden">
+                <View className="flex-row items-center gap-2 border-b border-neutral-100 px-3 py-2.5 dark:border-white/10">
+                  <Feather name="search" size={16} color="rgba(107,114,128,0.9)" />
+                  <TextInput
+                    value={inviteSearch}
+                    onChangeText={setInviteSearch}
+                    placeholder="Search name or email…"
+                    placeholderTextColor="rgba(156,163,175,1)"
+                    autoCapitalize="none"
+                    className="flex-1 font-playfair text-sm text-neutral-900 dark:text-white"
+                  />
+                </View>
+                <FlatList
+                  data={filteredInviteablePlayers}
+                  keyExtractor={(item, idx) => String(item?._id || idx)}
+                  style={{ maxHeight: 320 }}
+                  keyboardShouldPersistTaps="handled"
+                  ListEmptyComponent={
+                    <View className="p-4">
+                      <Text className="font-playfair text-sm text-neutral-600 dark:text-white/65">
+                        {inviteSearch ? "No players match your search." : "No inviteable players found for this team’s sport."}
+                      </Text>
+                    </View>
+                  }
+                  renderItem={({ item }) => {
+                    const id = String(item?._id || "");
+                    const selected = id && String(selectedInvitePlayerId) === id;
+                    return (
+                      <Pressable
+                        onPress={() => setSelectedInvitePlayerId(id)}
+                        className={`px-4 py-3 border-b border-neutral-100 dark:border-white/10 ${selected ? "bg-neutral-50 dark:bg-white/10" : ""}`}
+                      >
+                        <Text className="font-playfair text-sm text-neutral-900 dark:text-white/85">{playerRowLabel(item)}</Text>
+                      </Pressable>
+                    );
+                  }}
+                />
+              </View>
+            )}
+
             <Pressable
-              onPress={sendInvite}
-              disabled={busy}
+              onPress={inviteSelectedPlayer}
+              disabled={inviting || !selectedInvitePlayerId}
               className="mt-5 items-center rounded-2xl bg-primary py-3.5 disabled:opacity-50"
             >
-              {busy ? <ActivityIndicator color="#fff" /> : <Text className="font-newsreader-bold text-white">Send invite</Text>}
+              {inviting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="font-newsreader-bold text-white">Invite</Text>
+              )}
             </Pressable>
           </Pressable>
         </Pressable>

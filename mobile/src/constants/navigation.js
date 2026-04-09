@@ -91,6 +91,7 @@ export const SCREENS = Object.freeze({
   OrganizerMyQueriesScreen: 'OrganizerMyQueriesScreen',
   OrganizerTeamsHome: 'OrganizerTeamsHome',
   OrganizerTeamDetail: 'OrganizerTeamDetail',
+  OrganizerTeamPlayers: 'OrganizerTeamPlayers',
   OrganizerCreateTeam: 'OrganizerCreateTeam',
   OrganizerEditTeam: 'OrganizerEditTeam',
   OrganizerMyEvents: 'OrganizerMyEvents',
