@@ -135,8 +135,7 @@ export default function OrganizerCreateTeam() {
       ) : (
         <>
           <Text className="mb-4 font-playfair text-sm text-neutral-600 dark:text-white/65">
-            Creates an empty roster you can fill by inviting players or adding members by user id (same as web organizer
-            flow).
+            Creates an empty roster. After creating, invite players from the Team detail screen (same as web organizer flow).
           </Text>
           {sports.length === 0 ? (
             <View className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/35 dark:bg-amber-500/10">

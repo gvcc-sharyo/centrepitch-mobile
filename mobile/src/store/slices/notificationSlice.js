@@ -100,9 +100,10 @@ const notificationSlice = createSlice({
       })
       .addCase(fetchNotifications.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.notifications = action.payload.data;
-        state.unreadCount = action.payload.unreadCount;
-        state.pagination = action.payload.pagination;
+        const p = action.payload || {};
+        state.notifications = Array.isArray(p.data) ? p.data : [];
+        if (typeof p.unreadCount === 'number') state.unreadCount = p.unreadCount;
+        state.pagination = p.pagination || { current: 1, pages: 1, total: 0 };
       })
       .addCase(fetchNotifications.rejected, (state, action) => {
         state.isLoading = false;
@@ -114,9 +115,12 @@ const notificationSlice = createSlice({
       })
       // Mark as Read — always decrement badge so header updates (pages use local list state)
       .addCase(markAsRead.fulfilled, (state, action) => {
-        const notification = state.notifications.find(n => n._id === action.payload);
-        if (notification) notification.isRead = true;
-        state.unreadCount = Math.max(0, state.unreadCount - 1);
+        const id = String(action.payload);
+        const notification = state.notifications.find((n) => String(n._id) === id);
+        if (notification && !notification.isRead) {
+          notification.isRead = true;
+          state.unreadCount = Math.max(0, state.unreadCount - 1);
+        }
       })
       // Mark All as Read — always zero badge so header updates
       .addCase(markAllAsRead.fulfilled, (state) => {
@@ -125,11 +129,12 @@ const notificationSlice = createSlice({
       })
       // Delete Notification — decrement badge if was unread
       .addCase(deleteNotification.fulfilled, (state, action) => {
-        const notification = state.notifications.find(n => n._id === action.payload);
+        const id = String(action.payload);
+        const notification = state.notifications.find((n) => String(n._id) === id);
         if (notification && !notification.isRead) {
           state.unreadCount = Math.max(0, state.unreadCount - 1);
         }
-        state.notifications = state.notifications.filter(n => n._id !== action.payload);
+        state.notifications = state.notifications.filter((n) => String(n._id) !== id);
       });
   }
 });
